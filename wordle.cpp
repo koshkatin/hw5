@@ -20,16 +20,10 @@ using namespace std;
 void generate(
     size_t idx, 
     std::string in, // making it mutable
-    const std::string& floating, 
+    std::string floating, 
     const std::set<std::string>& dict,
     std::set<std::string>& out 
 );
-
-/**
- * Checks if the in string includes all floating letters at least once
- */
-bool hasAllFloating(const std::string& in, const std::string& floating);
-
 
 // Definition of primary wordle function
 std::set<std::string> wordle(
@@ -47,54 +41,50 @@ std::set<std::string> wordle(
 // Define any helper functions here
 void generate(
     size_t idx, 
-    std::string in, // making it mutable
-    const std::string& floating, 
+    std::string in, // mutable
+    std::string floating, 
     const std::set<std::string>& dict,
-    std::set<std::string>& out 
-)
+    std::set<std::string>& out)
 {
-    // Base Case : reached the end of in string
-    if (idx == in.size()) { 
-        if (hasAllFloating(in, floating) && dict.count(in)) {
+    if (idx == in.size()) {
+        if (floating.empty() && dict.count(in)) {
             out.insert(in);
         }
         return;
     }
 
-    // Recursive Case : step thorugh all configurations of a-z in "empty" spots
-    if (in[idx] != '-') {   // spot already filled 
+    size_t remaining_dashes = 0;
+    for (size_t i = idx; i < in.size(); ++i) {
+        if (in[i] == '-') remaining_dashes++;
+    }
+    if (floating.size() > remaining_dashes) return;
+
+    if (in[idx] != '-') {
         generate(idx + 1, in, floating, dict, out);
     }
-    else {  // spot is '-'
+    else {
+        std::set<char> tried;
+
+        // Try all characters from floating
+        for (size_t i = 0; i < floating.size(); ++i) {
+            char c = floating[i];
+            if (tried.count(c)) continue;
+            tried.insert(c);
+
+            in[idx] = c;
+            std::string newFloating = floating;
+            newFloating.erase(newFloating.find(c), 1);  // remove one instance
+            generate(idx + 1, in, newFloating, dict, out);
+        }
+
+        // Try all other characters not in floating
         for (char c = 'a'; c <= 'z'; ++c) {
-            in[idx] = c; // fill spot
-            generate(idx + 1, in, floating, dict, out); // go to next spot
-            in[idx] = '-'; // reset the spot for the next letter
+            if (floating.find(c) != std::string::npos) continue;
+            if (tried.count(c)) continue;
+            tried.insert(c);
+
+            in[idx] = c;
+            generate(idx + 1, in, floating, dict, out);
         }
     }
-}
-
-bool hasAllFloating(const std::string& in, const std::string& floating)
-{
-    std::map<char, int> flCount; // stores # occurence for each ch in floating 
-    std::map<char, int> inCount; // stores # occurence for each ch in 'in'
-
-    // feed floating chars and their count to map container
-    for (size_t i = 0; i < floating.size(); ++i) {
-        char c = floating[i];
-        flCount[c]++;
-    }
-
-    // feed 'in' chars and their count to map container
-    for (size_t i = 0; i < in.size(); ++i) {
-        char c = in[i];
-        inCount[c]++;
-    }
-
-    // loop through maximum of alphabet length,
-    // return false if floating letters appear less in 'in' string
-    for (char c = 'a'; c <= 'z'; ++c) {
-        if (inCount[c] < flCount[c]) return false; // directly compare values
-    }
-    return true;
 }
